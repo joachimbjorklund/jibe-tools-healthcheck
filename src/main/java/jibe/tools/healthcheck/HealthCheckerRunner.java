@@ -24,12 +24,15 @@ public class HealthCheckerRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(HealthCheckerRunner.class);
     private static final String HEALTHCHECK_ARG = "--healthcheck=";
 
-    public List<HealthCheckResult> run(List<String> args) {
+    public HealthCheckResults run(List<String> args) {
         LOGGER.debug("run: {}", args);
         List<String> healthCheckArgs = extractHealthCheckArgs(args);
         if (healthCheckArgs.isEmpty()) {
             LOGGER.debug("no healthcheck endpoints given");
-            return Collections.emptyList();
+            return new HealthCheckResultsBuilder()
+                .results(Collections.emptyList())
+                .allOK(true)
+                .build();
         }
 
         List<HealthCheckEndpoint> healthCheckEndpoints = healthCheckArgs.stream()
@@ -45,7 +48,7 @@ public class HealthCheckerRunner {
             .collect(Collectors.toList());
     }
 
-    private List<HealthCheckResult> healthcheck(List<HealthCheckEndpoint> healthCheckEndpoints) {
+    private HealthCheckResults healthcheck(List<HealthCheckEndpoint> healthCheckEndpoints) {
         List<HealthCheckThreadRunner> threadRunners = new ArrayList<>();
         List<Thread> threads = new ArrayList<>();
         for (HealthCheckEndpoint endpoint : healthCheckEndpoints) {
@@ -57,7 +60,11 @@ public class HealthCheckerRunner {
         threads.forEach(Thread::start);
         threads.forEach(this::join);
 
-        return threadRunners.stream().map(r -> r.result).collect(Collectors.toList());
+        List<HealthCheckResult> results = threadRunners.stream().map(r -> r.result).collect(Collectors.toList());
+        return new HealthCheckResultsBuilder()
+            .results(results)
+            .allOK(results.stream().allMatch(HealthCheckResult::getResult))
+            .build();
     }
 
     private void join(Thread thread) {
@@ -103,6 +110,14 @@ public class HealthCheckerRunner {
         HealthCheckEndpoint getHealthCheckEndpoint();
 
         boolean getResult();
+    }
+
+    @Value.Immutable
+    @Value.Style(visibility = PRIVATE)
+    interface HealthCheckResults {
+        List<HealthCheckResult> getResults();
+
+        boolean allOK();
     }
 
     @Value.Immutable

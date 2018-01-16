@@ -26,18 +26,17 @@ public class HealthCheckerRunnerTest {
     private static int SERVER_PORT = 8080;
 
     @Test
-    public void testRun() throws Exception {
+    public void testRun() {
         assertFalse(healthcheck(HEALTHCHECK_ENDPOINT));
 
-        Thread thread = new Thread(() -> startSimpleHealthCheckedServer());
+        Thread thread = new Thread(this::startSimpleHealthCheckedServer);
         thread.start();
 
         assertTrue(healthcheck(HEALTHCHECK_ENDPOINT));
     }
 
     private boolean healthcheck(String argument) {
-        return new HealthCheckerRunner().run(singletonList(argument)).stream()
-            .allMatch(HealthCheckerRunner.HealthCheckResult::getResult);
+        return new HealthCheckerRunner().run(singletonList(argument)).allOK();
     }
 
     private void startSimpleHealthCheckedServer()  {
